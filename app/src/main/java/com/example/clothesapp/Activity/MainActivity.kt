@@ -441,7 +441,7 @@ fun BottomMenu(
         )
         BottomMenuItem(
             icon = painterResource(R.drawable.btn_3),
-            text = "Favorite",
+            text = "Best Items",
             onItemClick = onFavoriteClick
         )
         BottomMenuItem(
