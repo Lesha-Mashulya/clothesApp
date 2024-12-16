@@ -16,6 +16,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Parcel
+import android.os.Parcelable
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -73,358 +75,390 @@ import com.example.clothesapp.Model.SliderModel
 import com.example.clothesapp.R
 import com.example.clothesapp.ViewModel.MainViewModel
 
-class MainActivity : BaseActivity() {
+class MainActivity() : BaseActivity(), Parcelable {
+    constructor(parcel: Parcel) : this() {
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MainActivityScreen {
-                val intent = Intent(this, CartActivity::class.java)
-                ContextCompat.startActivity(this, intent, null)
+            MainActivityScreen(
+                onCartClick = {
+                    val intent = Intent(this, CartActivity::class.java)
+                    ContextCompat.startActivity(this, intent, null)
+                },
+                onFavoriteClick = {
+                    val intent = Intent(this, FavoriteActivity::class.java)
+                    ContextCompat.startActivity(this, intent, null)
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun MainActivityScreen(onCartClick: () -> Unit, onFavoriteClick: () -> Unit) {
+        val viewModel = MainViewModel()
+
+        val banners = remember { mutableStateListOf<SliderModel>() }
+        val categories = remember { mutableStateListOf<CategoryModel>() }
+        val Popular = remember { mutableStateListOf<ItemsModel>() }
+
+        var showBannerLoading by remember { mutableStateOf(true) }
+        var showCategoryLoading by remember { mutableStateOf(true) }
+        var showPopularLoading by remember { mutableStateOf(true) }
+
+        //banner
+        LaunchedEffect(Unit) {
+            viewModel.loadBanner().observeForever {
+                banners.clear()
+                banners.addAll(it)
+                showBannerLoading = false
             }
         }
-    }
-}
 
-@Composable
-fun MainActivityScreen(onCartClick: () -> Unit) {
-    val viewModel = MainViewModel()
+        //category
+        LaunchedEffect(Unit) {
+            viewModel.loadCategory().observeForever {
+                categories.clear()
+                categories.addAll(it)
+                showCategoryLoading = false
+            }
+        }
 
-    val banners = remember { mutableStateListOf<SliderModel>() }
-    val categories = remember { mutableStateListOf<CategoryModel>() }
-    val Popular = remember { mutableStateListOf<ItemsModel>() }
+        //Popular
+        LaunchedEffect(Unit) {
+            viewModel.loadPopular().observeForever {
+                Popular.clear()
+                Popular.addAll(it)
+                showPopularLoading = false
+            }
+        }
 
+        ConstraintLayout(modifier = Modifier.background(Color.White)) {
+            val (scrollList, bottomMenu) = createRefs()
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .constrainAs(scrollList) {
+                        top.linkTo(parent.top)
+                        bottom.linkTo(parent.bottom)
+                        end.linkTo(parent.end)
+                        start.linkTo(parent.start)
+                    }
+            ) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 70.dp)
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Welcome Back",
+                                color = Color.Black,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Row {
+                            Image(
+                                painter = painterResource(R.drawable.search_icon),
+                                contentDescription = null
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Image(
+                                painter = painterResource(R.drawable.bell_icon),
+                                contentDescription = null
+                            )
+                        }
+                    }
+                }
 
-    var showBannerLoading by remember { mutableStateOf(true) }
-    var showCategoryLoading by remember { mutableStateOf(true) }
-    var showPopularLoading by remember { mutableStateOf(true) }
+                //Banners
+                item {
+                    if (showBannerLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        Banners(banners)
+                    }
+                }
 
-    //banner
-    LaunchedEffect(Unit) {
-        viewModel.loadBanner().observeForever {
-            banners.clear()
-            banners.addAll(it)
-            showBannerLoading = false
+                item {
+                    Text(
+                        text = "Official Brand",
+                        color = Color.Black,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 24.dp)
+                            .padding(horizontal = 16.dp)
+                    )
+                }
+                item {
+                    if (showCategoryLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        CategoryList(categories)
+                    }
+                }
+                item {
+                    SectionTitle("Most Popular", "See All")
+                }
+                item {
+                    if (showPopularLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        ListItems(Popular)
+                    }
+                }
+            }
+
+            BottomMenu(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .constrainAs(bottomMenu) {
+                        bottom.linkTo(parent.bottom)
+                    },
+                onCartClick = onCartClick,
+                onFavoriteClick = onFavoriteClick
+            )
         }
     }
 
-    //category
-    LaunchedEffect(Unit) {
-        viewModel.loadCategory().observeForever {
-            categories.clear()
-            categories.addAll(it)
-            showCategoryLoading = false
-        }
-    }
+    @Composable
+    fun CategoryList(categories: SnapshotStateList<CategoryModel>) {
+        var selectedIndex by remember { mutableStateOf(-1) }
+        val context = LocalContext.current
 
-    //Popular
-    LaunchedEffect(Unit) {
-        viewModel.loadPopular().observeForever {
-            Popular.clear()
-            Popular.addAll(it)
-            showPopularLoading = false
-        }
-
-    }
-
-
-    ConstraintLayout(modifier = Modifier.background(Color.White)) {
-        val (scrollList, bottomMenu) = createRefs()
-        LazyColumn(
+        LazyRow(
             modifier = Modifier
-                .fillMaxSize()
-                .constrainAs(scrollList) {
-                    top.linkTo(parent.top)
-                    bottom.linkTo(parent.bottom)
-                    end.linkTo(parent.end)
-                    start.linkTo(parent.start)
-                }
+                .fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp)
         ) {
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 70.dp)
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Welcome Back",
-                            color = Color.Black,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,)
-                    }
-                    Row {
-                        Image(
-                            painter = painterResource(R.drawable.search_icon),
-                            contentDescription = null
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Image(
-                            painter = painterResource(R.drawable.bell_icon),
-                            contentDescription = null
-                        )
-                    }
-                }
-            }
 
-            //Banners
-            item {
-                if (showBannerLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+            items(categories.size) { index ->
+                CategoryItem(item = categories[index], isSelected = selectedIndex == index,
+                    onItemClick = {
+                        selectedIndex = index
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val intent = Intent(context, ListItemsActivity::class.java).apply {
+                                putExtra("id", categories[index].id.toString())
+                                putExtra("title", categories[index].title)
+                            }
+                            startActivity(context, intent, null)
+                        }, 500)
                     }
-                } else {
-                    Banners(banners)
-                }
-            }
-
-            item {
-                Text(
-                    text = "Official Brand",
-                    color = Color.Black,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 24.dp)
-                        .padding(horizontal = 16.dp)
                 )
-            }
-            item {
-                if (showCategoryLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    CategoryList(categories)
-                }
-            }
-            item {
-                SectionTitle("Most Popular", "See All")
-            }
-            item {
-                if (showPopularLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    ListItems(Popular)
-                }
+
             }
         }
+    }
 
-        BottomMenu(
+    @Composable
+    fun CategoryItem(item: CategoryModel, isSelected: Boolean, onItemClick: () -> Unit) {
+        Column(
+            modifier = Modifier
+                .clickable(onClick = onItemClick),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AsyncImage(
+                model = (item.picUrl),
+                contentDescription = item.title,
+                modifier = Modifier
+                    .size(if (isSelected) 60.dp else 50.dp)
+                    .background(
+                        color = if (isSelected) colorResource(R.color.darkBrown) else colorResource(
+                            R.color.lightBrown
+                        ),
+                        shape = RoundedCornerShape(100.dp)
+                    ),
+                contentScale = ContentScale.Inside,
+                colorFilter = if (isSelected) {
+                    ColorFilter.tint(Color.White)
+                } else {
+                    ColorFilter.tint(Color.Black)
+                }
+            )
+            Spacer(modifier = Modifier.padding(top = 8.dp))
+            Text(
+                text = item.title,
+                color = colorResource(R.color.darkBrown),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+    }
+
+    @Composable
+    fun SectionTitle(title: String, actionText: String) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .constrainAs(bottomMenu) {
-                    bottom.linkTo(parent.bottom)
-                },
-            onItemClick = onCartClick
-        )
-    }
-}
-
-@Composable
-fun CategoryList(categories: SnapshotStateList<CategoryModel>) {
-    var selectedIndex by remember { mutableStateOf(-1) }
-    val context = LocalContext.current
-
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp)
-    ) {
-
-        items(categories.size) { index ->
-            CategoryItem(item = categories[index], isSelected = selectedIndex == index,
-                onItemClick = {
-                    selectedIndex = index
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        val intent = Intent(context, ListItemsActivity::class.java).apply {
-                            putExtra("id", categories[index].id.toString())
-                            putExtra("title", categories[index].title)
-                        }
-                        startActivity(context, intent, null)
-                    }, 500)
-                }
+                .padding(top = 24.dp)
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                color = Color.Black,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
             )
-
+            Text(
+                text = actionText,
+                color = colorResource(R.color.darkBrown)
+            )
         }
     }
-}
 
-@Composable
-fun CategoryItem(item: CategoryModel, isSelected: Boolean, onItemClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .clickable(onClick = onItemClick), horizontalAlignment = Alignment.CenterHorizontally
+    @OptIn(ExperimentalPagerApi::class)
+    @Composable
+    fun Banners(banners: List<SliderModel>) {
+        AutoSlidingCarousel(banners = banners)
+    }
+
+    @OptIn(ExperimentalPagerApi::class)
+    @Composable
+    fun AutoSlidingCarousel(
+        modifier: Modifier = Modifier.padding(top = 16.dp),
+        pagerState: PagerState = remember { PagerState() },
+        banners: List<SliderModel>
     ) {
-        AsyncImage(
-            model = (item.picUrl),
-            contentDescription = item.title,
-            modifier = Modifier
-                .size(if (isSelected) 60.dp else 50.dp)
-                .background(
-                    color = if (isSelected) colorResource(R.color.darkBrown) else colorResource(R.color.lightBrown),
-                    shape = RoundedCornerShape(100.dp)
-                ),
-            contentScale = ContentScale.Inside,
-            colorFilter = if (isSelected) {
-                ColorFilter.tint(Color.White)
-            } else {
-                ColorFilter.tint(Color.Black)
+        val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+
+        Column(modifier = modifier.fillMaxSize()) {
+            HorizontalPager(count = banners.size, state = pagerState) { page ->
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(banners[page].url)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 16.dp, bottom = 8.dp)
+                        .height(150.dp)
+                )
             }
-        )
-        Spacer(modifier = Modifier.padding(top = 8.dp))
-        Text(
-            text = item.title,
-            color = colorResource(R.color.darkBrown),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-
-}
-
-@Composable
-fun SectionTitle(title: String, actionText: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 24.dp)
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = title,
-            color = Color.Black,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = actionText,
-            color = colorResource(R.color.darkBrown)
-        )
-    }
-}
-
-@OptIn(ExperimentalPagerApi::class)
-@Composable
-fun Banners(banners: List<SliderModel>) {
-    AutoSlidingCarousel(banners = banners)
-}
-
-@OptIn(ExperimentalPagerApi::class)
-@Composable
-fun AutoSlidingCarousel(
-    modifier: Modifier = Modifier.padding(top = 16.dp),
-    pagerState: PagerState = remember { PagerState() },
-    banners: List<SliderModel>
-) {
-    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
-
-    Column(modifier = modifier.fillMaxSize()) {
-        HorizontalPager(count = banners.size, state = pagerState) { page ->
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(banners[page].url)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
+            DotIndicator(
                 modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 16.dp, bottom = 8.dp)
-                    .height(150.dp)
+                    .padding(horizontal = 8.dp)
+                    .align(Alignment.CenterHorizontally),
+                totalDots = banners.size,
+                selectedIndex = if (isDragged) pagerState.currentPage else pagerState.currentPage,
+                dotSize = 8.dp
             )
         }
-        DotIndicator(
-            modifier = Modifier
-                .padding(horizontal = 8.dp)
-                .align(Alignment.CenterHorizontally),
-            totalDots = banners.size,
-            selectedIndex = if (isDragged) pagerState.currentPage else pagerState.currentPage,
-            dotSize = 8.dp
-        )
     }
-}
 
-@Composable
-fun DotIndicator(
-    modifier: Modifier = Modifier,
-    totalDots: Int,
-    selectedIndex: Int,
-    selectedColor: Color = colorResource(R.color.darkBrown),
-    unSelectedColor: Color = colorResource(R.color.grey),
-    dotSize: Dp
-) {
-    LazyRow(
-        modifier = modifier
-            .wrapContentSize()
+    @Composable
+    fun DotIndicator(
+        modifier: Modifier = Modifier,
+        totalDots: Int,
+        selectedIndex: Int,
+        selectedColor: Color = colorResource(R.color.darkBrown),
+        unSelectedColor: Color = colorResource(R.color.grey),
+        dotSize: Dp
     ) {
-        items(totalDots) { index ->
-            IndicatorDot(
-                color = if (index == selectedIndex) selectedColor else unSelectedColor,
-                size = dotSize
-            )
-            if (index != totalDots - 1) {
-                Spacer(modifier = Modifier.padding(horizontal = 2.dp))
+        LazyRow(
+            modifier = modifier
+                .wrapContentSize()
+        ) {
+            items(totalDots) { index ->
+                IndicatorDot(
+                    color = if (index == selectedIndex) selectedColor else unSelectedColor,
+                    size = dotSize
+                )
+                if (index != totalDots - 1) {
+                    Spacer(modifier = Modifier.padding(horizontal = 2.dp))
+                }
             }
         }
     }
-}
 
-@Composable
-fun IndicatorDot(
-    modifier: Modifier = Modifier,
-    size: Dp,
-    color: Color
-) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(color)
-    )
-}
-
-
-@Composable
-fun BottomMenu(modifier: Modifier, onItemClick: () -> Unit) {
-    Row(
-        modifier = modifier
-            .padding(start = 16.dp, end = 16.dp, bottom = 32.dp)
-            .background(
-                colorResource(R.color.darkBrown),
-                shape = RoundedCornerShape(10.dp)
-            ),
-        horizontalArrangement = Arrangement.SpaceAround
+    @Composable
+    fun IndicatorDot(
+        modifier: Modifier = Modifier,
+        size: Dp,
+        color: Color
     ) {
-        BottomMenuItem(icon = painterResource(R.drawable.btn_1), text = "Explorer")
-        BottomMenuItem(
-            icon = painterResource(R.drawable.btn_2),
-            text = "Cart",
-            onItemClick = onItemClick
+        Box(
+            modifier = modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(color)
         )
-        BottomMenuItem(icon = painterResource(R.drawable.btn_3), text = "Favorite")
-        BottomMenuItem(icon = painterResource(R.drawable.btn_4), text = "Orders")
-        BottomMenuItem(icon = painterResource(R.drawable.btn_5), text = "Profile")
+    }
+
+
+    @Composable
+    fun BottomMenu(modifier: Modifier, onCartClick: () -> Unit, onFavoriteClick: () -> Unit) {
+        Row(
+            modifier = modifier
+                .padding(start = 16.dp, end = 16.dp, bottom = 32.dp)
+                .background(
+                    colorResource(R.color.darkBrown),
+                    shape = RoundedCornerShape(10.dp)
+                ),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            BottomMenuItem(
+                icon = painterResource(R.drawable.btn_2),
+                text = "Cart",
+                onItemClick = onCartClick
+            )
+            BottomMenuItem(
+                icon = painterResource(R.drawable.btn_3),
+                text = "Favorite",
+                onItemClick = onFavoriteClick
+            )
+            BottomMenuItem(icon = painterResource(R.drawable.btn_4), text = "Map")
+        }
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<MainActivity> {
+        override fun createFromParcel(parcel: Parcel): MainActivity {
+            return MainActivity(parcel)
+        }
+
+        override fun newArray(size: Int): Array<MainActivity?> {
+            return arrayOfNulls(size)
+        }
     }
 }
 
