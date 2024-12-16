@@ -1,6 +1,5 @@
 package com.example.clothesapp.Widget
 
-import ScanQRCodeActivity
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -39,9 +38,6 @@ class MainWidgetProvider : AppWidgetProvider() {
             val balancePendingIntent = PendingIntent.getActivity(context, 3, balanceIntent, PendingIntent.FLAG_IMMUTABLE)
             views.setOnClickPendingIntent(R.id.widget_balance_button, balancePendingIntent)
 
-            val scanQrIntent = Intent(context, ScanQRCodeActivity::class.java) // Активность для сканирования QR-кода
-            val scanQrPendingIntent = PendingIntent.getActivity(context, 4, scanQrIntent, PendingIntent.FLAG_IMMUTABLE)
-            views.setOnClickPendingIntent(R.id.widget_scan_qr_button, scanQrPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
