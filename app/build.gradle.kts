@@ -74,4 +74,6 @@ dependencies {
     implementation ("androidx.compose.foundation:foundation:1.5.0")
     implementation ("androidx.compose.ui:ui-tooling:1.7.5")
     implementation ("com.google.android.material:material:1.12.0")
+    implementation("com.google.zxing:core:3.4.1")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 }
