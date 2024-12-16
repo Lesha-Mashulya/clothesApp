@@ -164,17 +164,6 @@ class MainActivity() : BaseActivity(), Parcelable {
                                 fontWeight = FontWeight.Bold,
                             )
                         }
-                        Row {
-                            Image(
-                                painter = painterResource(R.drawable.search_icon),
-                                contentDescription = null
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Image(
-                                painter = painterResource(R.drawable.bell_icon),
-                                contentDescription = null
-                            )
-                        }
                     }
                 }
 
