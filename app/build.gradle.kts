@@ -76,4 +76,9 @@ dependencies {
     implementation ("com.google.android.material:material:1.12.0")
     implementation("com.google.zxing:core:3.4.1")
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.maps.android:maps-compose-utils:4.3.3")
+    implementation("com.google.maps.android:maps-compose-widgets:4.3.3")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
 }
